@@ -34,11 +34,18 @@ pipeline {
                             reuseNode true
                         }
                     }
+
                     steps {
                         sh '''
                             echo "Test Stage"
                             npm test
                         '''
+                    }
+
+                    post {
+                        always {
+                            junit 'jest-results/junit.xml'
+                        }
                     }
                 }
 
@@ -49,6 +56,7 @@ pipeline {
                             reuseNode true
                         }
                     }
+
                     steps {
                         sh '''
                             echo "E2E Playwright Test Stage"
@@ -57,6 +65,22 @@ pipeline {
                             sleep 10
                             npx playwright test --reporter=html
                         '''
+                    }
+
+                    post {
+                        always {
+                            publishHTML([
+                                allowMissing: false,
+                                alwaysLinkToLastBuild: false,
+                                icon: '',
+                                keepAll: false,
+                                reportDir: 'playwright-report',
+                                reportFiles: 'index.html',
+                                reportName: 'Playwright HTML Report',
+                                reportTitles: '',
+                                useWrapperFileDirectly: true
+                            ])
+                        }
                     }
                 }
 
@@ -70,7 +94,7 @@ pipeline {
             junit 'jest-results/junit.xml'
 
             publishHTML([
-                allowMissing: false,
+                allowMissing: true,
                 alwaysLinkToLastBuild: false,
                 icon: '',
                 keepAll: false,
