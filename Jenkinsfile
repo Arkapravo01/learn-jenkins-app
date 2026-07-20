@@ -91,8 +91,26 @@ pipeline {
                 }
             }
         }
+        stage('Deploy Staging') {
+            agent {
+                docker {
+                    image 'node:18'
+                    reuseNode true
+                }
+            }
 
-        stage('Deploy') {
+            steps {
+                sh '''
+                    echo "Deploying to Staging"
+
+                    npx netlify-cli --version
+                    npx netlify-cli status
+                    npx netlify-cli deploy --dir=build
+                '''
+            }
+        }
+
+        stage('Deploy Prod') {
             agent {
                 docker {
                     image 'node:18'
