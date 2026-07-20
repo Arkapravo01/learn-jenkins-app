@@ -8,7 +8,6 @@ pipeline {
 
     stages {
 
-        
         stage('Build') {
             agent {
                 docker {
@@ -18,17 +17,14 @@ pipeline {
             }
             steps {
                 sh '''
-                    echo 'Small Change'
-                    ls -la
+                    echo "Build Stage"
                     node --version
                     npm --version
                     npm ci
                     npm run build
-                    ls -la
                 '''
             }
         }
-        
 
         stage('Run Tests') {
             parallel {
@@ -43,7 +39,7 @@ pipeline {
 
                     steps {
                         sh '''
-                            echo "Test Stage"
+                            echo "Running Unit Tests"
                             npm test
                         '''
                     }
@@ -55,7 +51,7 @@ pipeline {
                     }
                 }
 
-                stage('E2E Test') {
+                stage('Local E2E Test') {
                     agent {
                         docker {
                             image 'mcr.microsoft.com/playwright:v1.39.0-jammy'
@@ -65,6 +61,14 @@ pipeline {
 
                     steps {
                         sh '''
+                            echo "Running Local E2E Tests"
+
+                            npm install
+                            npm install serve
+
+                            npx serve -s build -l 3000 &
+                            sleep 10
+
                             npx playwright test --reporter=html
                         '''
                     }
@@ -75,7 +79,7 @@ pipeline {
                                 allowMissing: false,
                                 alwaysLinkToLastBuild: false,
                                 icon: '',
-                                keepAll: false,
+                                keepAll: true,
                                 reportDir: 'playwright-report',
                                 reportFiles: 'index.html',
                                 reportName: 'Playwright Local Report',
@@ -85,7 +89,6 @@ pipeline {
                         }
                     }
                 }
-
             }
         }
 
@@ -96,10 +99,12 @@ pipeline {
                     reuseNode true
                 }
             }
+
             steps {
                 sh '''
+                    echo "Deploying to Netlify"
+
                     npx netlify-cli --version
-                    echo "Deploying to production. Site ID: $NETLIFY_SITE_ID"
                     npx netlify-cli status
                     npx netlify-cli deploy --dir=build --prod
                 '''
@@ -113,16 +118,17 @@ pipeline {
                     reuseNode true
                 }
             }
+
             environment {
-                CI_ENVIRONMENT_URL = "playful-medovik-ab5931.netlify.app"
+                CI_ENVIRONMENT_URL = "https://playful-medovik-ab5931.netlify.app"
             }
 
             steps {
                 sh '''
-                    echo "E2E Playwright Test Stage"
-                    npm install serve
-                    node_modules/.bin/serve -s build &
-                    sleep 10
+                    echo "Running Production E2E Tests"
+
+                    npm install
+
                     npx playwright test --reporter=html
                 '''
             }
@@ -133,28 +139,27 @@ pipeline {
                         allowMissing: false,
                         alwaysLinkToLastBuild: false,
                         icon: '',
-                        keepAll: false,
+                        keepAll: true,
                         reportDir: 'playwright-report',
                         reportFiles: 'index.html',
-                        reportName: 'Playwright E2E HTML Report',
+                        reportName: 'Playwright Production Report',
                         reportTitles: '',
                         useWrapperFileDirectly: true
                     ])
                 }
             }
         }
-
-    } // closes stages
+    }
 
     post {
         always {
-            junit 'jest-results/junit.xml'
+            junit allowEmptyResults: true, testResults: 'jest-results/junit.xml'
 
             publishHTML([
                 allowMissing: true,
                 alwaysLinkToLastBuild: false,
                 icon: '',
-                keepAll: false,
+                keepAll: true,
                 reportDir: 'playwright-report',
                 reportFiles: 'index.html',
                 reportName: 'Playwright HTML Report',
@@ -164,7 +169,3 @@ pipeline {
         }
     }
 }
-
-        
-
-    
